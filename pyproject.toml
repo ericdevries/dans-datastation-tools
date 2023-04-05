@@ -47,6 +47,7 @@ dv-dataverse-oai-harvest = "datastation.scripts.oai_harvest:main"
 dv-dataverse-retrieve-pids="datastation.scripts.retrieve_dataset_pids:main"
 dv-file-prestage="datastation.scripts.prestage_files:main"
 dv-user-import="datastation.scripts.import_user:main"
+dv-notifications-cleanup="datastation.scripts.notifications_cleanup:main"
 
 ingest-flow-copy-batch-to-ingest-area="datastation.scripts.ingest_flow_copy_batch_to_ingest_area:main"
 ingest-flow-move-batch-to-ingest-area="datastation.scripts.ingest_flow_move_batch_to_ingest_area:main"
