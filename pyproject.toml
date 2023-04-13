@@ -16,6 +16,7 @@ pyYAML = "^6.0"
 psycopg = "^3.0.16"
 rich = "^12.6.0"
 now = "^0.0.6"
+argcomplete = "^3.0.5"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
@@ -26,6 +27,8 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
+ds = "datastation.scripts.singlescript:main"
+
 dv-banner = "datastation.scripts.dv_banner:main"
 dv-open-access-archeodepot = "datastation.scripts.open_access_archeodepot:main"
 dv-dataset-oai-harvest = "datastation.scripts.oai_harvest:main"
