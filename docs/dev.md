@@ -184,6 +184,5 @@ name = "John"
 f"Hello {name}"
 ```
 
-Do not use the old `%` syntax, or the `.format()` method or string concatenation.
-
-
+Do not use the old `%` syntax, or the `.format()` method or string concatenation. Also avoid concatenating strings with
+`+` or `+=`. Use string interpolation instead.
