@@ -1,126 +1,73 @@
 import argparse
-import json
-import logging
-import os, grp
-import shutil
-from pathlib import Path
 
-import requests
-from builtins import all
-import stat
-
-file_writeable_to_group = lambda f: os.stat(f).st_mode & stat.S_IWGRP > 0
-
-def start_import(service_baseurl, path, is_batch, continue_previous, is_migration, is_dry_run):
-    if not has_dirtree_pred(path, file_writeable_to_group):
-        chmod_command = "chmod -R g+w %s" % path
-        print("Some files in the import batch do not give the owner group write permissions. Executing '%s' to fix it" % chmod_command)
-        status = os.system(chmod_command)
-        if status != 0:
-            print("Could not give owner group write permissions. Possibly your account is not the owner user of the files.")
-            return
-    print("Sending start import request to server...")
-    command = {
-        'inputPath': os.path.abspath(path),
-        'batch': is_batch,
-        'continue': continue_previous
-    }
-    if is_dry_run:
-        logging.info("Only printing command, not sending it...")
-        print(json.dumps(command, indent=2))
-    else:
-        r = requests.post('%s/%s/:start' % (service_baseurl, "migrations" if is_migration else "imports"), json=command)
-        print('Server responded: %s' % r.text)
-
-def block_target(service_baseurl, target, is_dry_run):
-    url = '%s/blocked-targets/%s' % (service_baseurl, target,)
-
-    if is_dry_run:
-        logging.info("Only printing command, not sending it...")
-        print('Request: POST %s' % url)
-    else:
-        r = requests.post(url)
-        payload = r.json()
-
-        if 'message' not in payload:
-            print('Unexpected output format; expecting "message" property in result, not found: %s' % payload)
-
-        if r.status_code != 200:
-            print('ERROR: %s - %s' % (r.status_code, payload['message'],))
-        else:
-            print('Server responded: %s - %s' % (r.status_code, payload['message'],))
-
-def unblock_target(service_baseurl, target, is_dry_run):
-    url = '%s/blocked-targets/%s' % (service_baseurl, target,)
-
-    if is_dry_run:
-        logging.info("Only printing command, not sending it...")
-        print('Request: DELETE %s' % url)
-    else:
-        r = requests.delete(url)
-        payload = r.json()
-
-        if 'message' not in payload:
-            print('Unexpected output format; expecting "message" property in result, not found: %s' % payload)
-
-        if r.status_code != 200:
-            print('ERROR: %s - %s' % (r.status_code, payload['message'],))
-        else:
-            print('Server responded: %s - %s' % (r.status_code, payload['message'],))
+from datastation.common.config import init
+from datastation.ingestflow.ingest_flow import IngestFlow
 
 
-def has_file_pred(file, pred):
-    return pred(file)
+def main():
+    config = init()
+    ingest_flow = IngestFlow(config['ingest_flow'])
 
-def has_dirtree_pred(dir, pred):
-    for root, dirs, files in os.walk(dir):
-        return pred(root) \
-               and all(pred(os.path.join(root, dir)) for dir in dirs) \
-               and all(pred(os.path.join(root, file)) for file in files)
+    parser = argparse.ArgumentParser(description='Commands to control the ingest flow')
+    parser.set_defaults(func=lambda _: parser.print_help())
+    parser.add_argument('-d', '--dry-run', dest='dry_run', action='store_true',
+                        help='Only print command to be sent to server, but do not actually send it')
 
-def list_events(service_baseurl, params):
-    r = requests.get('%s/events' % service_baseurl, headers={'Accept': 'text/csv'}, params=params)
-    print(r.text)
+    subparsers = parser.add_subparsers(help='sub-command help', dest='command')
 
-def set_permissions(dir, dir_mode, file_mode, group):
-    for root, dirs, files in os.walk(dir):
-        shutil.chown(root, group=group)
-        for d in dirs:
-            p = os.path.join(root, d)
-            os.chmod(p, dir_mode)
-            shutil.chown(p, group=group)
-        for f in files:
-            p = os.path.join(root, f)
-            os.chmod(p, file_mode)
-            shutil.chown(p, group=group)
+    parser_start_migration = subparsers.add_parser('start-migration', help='Start migration of deposit or batch of '
+                                                                           'deposits')
+    parser_start_migration.add_argument('deposit_path', metavar='<batch-or-deposit>',
+                                        help='Directory containing one deposit or a batch of deposits')
+    parser_start_migration.add_argument('-s', '--single', dest="single_deposit", action="store_true",
+                                        help="<batch-or-deposit> refers to a single deposit")
+    parser_start_migration.add_argument('-c', '--continue', dest='continue_previous', action='store_true',
+                                        help="continue previously stopped batch "
+                                             "(i.e. allow output directory to be non-empty)")
+    parser_start_migration.set_defaults(func=lambda _: ingest_flow.start_ingest(args.deposit_path, args.single_deposit,
+                                                                                args.continue_previous,
+                                                                                is_migration=True))
 
-def is_dir_in_inbox(dir, inboxes):
-    return next(filter(lambda p: is_subpath_of(dir, p),  inboxes), None) is not None
+    parser_start_import = subparsers.add_parser('start-import', help='Start import of deposit or batch of deposits')
+    parser_start_import.add_argument('deposit_path', metavar='<batch-or-deposit>',
+                                     help='Directory containing one deposit or a batch of deposits')
+    parser_start_import.add_argument('-s', '--single', dest="single_deposit", action="store_true",
+                                     help="<batch-or-deposit> refers to a single deposit")
+    parser_start_import.add_argument('-c', '--continue', dest='continue_previous', action='store_true',
+                                     help="continue previously stopped batch "
+                                          "(i.e. allow output directory to be non-empty)")
+    parser_start_import.set_defaults(func=lambda _: ingest_flow.start_ingest(args.deposit_path, args.single_deposit,
+                                                                             args.continue_previous,
+                                                                             is_migration=False))
 
-def is_subpath_of(dir, parent):
-    absolute_parent = os.path.abspath(parent)
-    absolute_dir = os.path.abspath(dir)
-    return absolute_dir.startswith(absolute_parent)
+    parser_block_target = subparsers.add_parser('block-target', help='Block target')
+    parser_block_target.add_argument('target', metavar='<target>', help='Target to block')
+    parser_block_target.set_defaults(func=lambda _: ingest_flow.block_target(args.target))
+
+    parser_unblock_target = subparsers.add_parser('unblock-target', help='Unblock target')
+    parser_unblock_target.add_argument('target', metavar='<target>', help='Target to unblock')
+    parser_unblock_target.set_defaults(func=lambda _: ingest_flow.unblock_target(args.target))
+
+    parser_list_events = subparsers.add_parser('list-events', help='List events')
+    group = parser_list_events.add_mutually_exclusive_group()
+    group.add_argument('-s', '--source', dest='source', help='Source to filter on')
+    group.add_argument('-d', '--deposit', dest='deposit', help='UUID of deposit to filter on')
+    parser_list_events.set_defaults(func=lambda _: ingest_flow.list_events(args.source, args.deposit))
+
+    parser_progress_report = subparsers.add_parser('progress-report', help='Progress report')
+    parser_progress_report.add_argument('batch', metavar='<batch>', help='Batch to report on')
+    parser_progress_report.set_defaults(func=lambda _: ingest_flow.progress_report(args.batch))
+
+    parser_copy_batch = subparsers.add_parser('copy-batch', help='Copy batch to ingest area.')
+    parser_copy_batch.add_argument('batch', metavar='<batch>', help='Batch to copy')
+    parser_copy_batch.add_argument('target', metavar='<target>', help='Target to copy to')
+    parser_copy_batch.set_defaults(func=lambda _: ingest_flow.copy_batch_to_ingest_area(args.batch, args.target))
+
+    args = parser.parse_args()
+    ingest_flow.set_dry_run(args.dry_run)
+
+    args.func(args)
 
 
-def progress_report(batch_dir, ingest_areas):
-    abs_batch_dir = os.path.abspath(batch_dir)
-    ingest_area = next(filter(lambda ia: is_subpath_of(abs_batch_dir, ia['inbox']), ingest_areas), None)
-    if ingest_area is None:
-        print("ERROR: batch_dir {} does not seems to be in one of the inboxes: {}".format(batch_dir, ingest_area))
-        return 1
-    else:
-        logging.debug("Found ingest_area: {}".format(ingest_area))
-        rel_batch_dir = os.path.relpath(abs_batch_dir, ingest_area['inbox'])
-        logging.debug("Relative batch dir: {}".format(rel_batch_dir))
-        abs_out_dir = os.path.join(ingest_area['outbox'], rel_batch_dir)
-        logging.debug("Absolute out dir : {}".format(abs_out_dir))
-
-        todo = len(os.listdir(abs_batch_dir))
-        processed = len(os.listdir(os.path.join(abs_out_dir, 'processed')))
-        rejected= len(os.listdir(os.path.join(abs_out_dir, 'rejected')))
-        failed = len(os.listdir(os.path.join(abs_out_dir, 'failed')))
-
-        os.system("date")
-        print("todo = {} / processed = {} / rejected = {} / failed = {}".format(todo, processed, rejected, failed))
-        print()
+if __name__ == '__main__':
+    main()

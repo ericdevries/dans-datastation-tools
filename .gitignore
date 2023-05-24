@@ -136,6 +136,7 @@ dmypy.json
 /data/
 /config.yml
 /.dans-datastation-tools.yml
+/src/datastation/.dans-datastation-tools.yml
 /html
 
 /setup.py
