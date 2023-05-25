@@ -96,48 +96,6 @@ def replace_dataset_metadatafield(server_url, api_token, pid, field):
     return resp_data
 
 
-def get_dataverse_contents(server_url, api_token):
-    headers = {'X-Dataverse-key': api_token}
-    
-    try:
-        dv_resp = requests.get(server_url + '/api/dataverses/root/contents',
-                               headers=headers)
-        dv_resp.raise_for_status()
-    except requests.exceptions.RequestException as re:
-        print("RequestException: ", re)
-        raise
-    resp_data = dv_resp.json()['data']
-    return resp_data
-
-
-def get_dataset(server_url, api_token, pid, version='latest'):
-    headers = {'X-Dataverse-key': api_token}
-    params = {'persistentId': pid}
-    try:
-        dv_resp = requests.get(server_url + '/api/datasets/:persistentId/versions/' + version,
-                               params=params,
-                               headers=headers)
-        dv_resp.raise_for_status()
-    except requests.exceptions.RequestException as re:
-        print("RequestException: ", re)
-        raise
-    resp_data = dv_resp.json()['data']
-    return resp_data
-
-
-def get_dataset_by_internal_id(server_url, api_token, pid, version='latest'):
-    headers = {'X-Dataverse-key': api_token}
-    try:
-        dv_resp = requests.get(server_url + '/api/datasets/' + str(pid) + '/versions/' + version,
-                               headers=headers)
-        dv_resp.raise_for_status()
-    except requests.exceptions.RequestException as re:
-        print("RequestException: ", re)
-        raise
-    resp_data = dv_resp.json()['data']
-    return resp_data
-
-
 def get_dataset_roleassigments(server_url, api_token, pid):
     headers = {'X-Dataverse-key': api_token}
     params = {'persistentId': pid}
@@ -336,19 +294,3 @@ def replace_dataset_metadata(server_url, api_token, pid, json_data):
         raise
     resp_data = dv_resp.json()['data']
     return resp_data
-
-
-class DataverseAPI:
-
-    def __init__(self, server_url, api_token):
-        self.server_url = server_url
-        self.api_token = api_token
-
-    def get_dataset_files(self, pid: str, version=':latest'):
-        return get_dataset_files(self.server_url, pid, version)
-        
-    def get_dataset_locks(self, pid: str):
-        return get_dataset_locks(self.server_url, pid)
-
-    def reingest_file(self, file_id: str):
-        return reingest_file(self.server_url, self.api_token, file_id)
