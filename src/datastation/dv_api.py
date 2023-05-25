@@ -171,12 +171,29 @@ def add_dataset_role_assignment(server_url, api_token, pid, assignment):
     dv_resp.raise_for_status()
 
 
-def get_dataset_locks(server_url, pid):
+def get_dataset_locks(server_url: str, pid: str):
     dv_resp = requests.get(server_url + '/api/datasets/:persistentId/locks?persistentId=' + pid)
     # give some feedback
     # print("Status code: {}".format(dv_resp.status_code))
     # print("Json: {}".format(dv_resp.json()))
     # the json result is a dictionary... so we could check for something in it
+    dv_resp.raise_for_status()
+    resp_data = dv_resp.json()['data']
+    return resp_data
+
+def get_dataset_files(server_url: str, pid: str, version=':latest'):
+    dv_resp = requests.get(server_url + '/api/datasets/:persistentId/versions/' + version + '/files?persistentId=' + pid)
+    # give some feedback
+    # print("Status code: {}".format(dv_resp.status_code))
+    # print("Json: {}".format(dv_resp.json()))
+    # the json result is a dictionary... so we could check for something in it
+    dv_resp.raise_for_status()
+    resp_data = dv_resp.json()['data']
+    return resp_data
+
+def reingest_file(server_url: str, api_token: str, file_id: str):
+    headers = {'X-Dataverse-key': api_token, 'Content-Type': 'application/json'}
+    dv_resp = requests.post(server_url + '/api/files/' + file_id + '/reingest', headers=headers)
     dv_resp.raise_for_status()
     resp_data = dv_resp.json()['data']
     return resp_data
@@ -321,3 +338,17 @@ def replace_dataset_metadata(server_url, api_token, pid, json_data):
     return resp_data
 
 
+class DataverseAPI:
+
+    def __init__(self, server_url, api_token):
+        self.server_url = server_url
+        self.api_token = api_token
+
+    def get_dataset_files(self, pid: str, version=':latest'):
+        return get_dataset_files(self.server_url, pid, version)
+        
+    def get_dataset_locks(self, pid: str):
+        return get_dataset_locks(self.server_url, pid)
+
+    def reingest_file(self, file_id: str):
+        return reingest_file(self.server_url, self.api_token, file_id)

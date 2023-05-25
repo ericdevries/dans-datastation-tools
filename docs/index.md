@@ -9,96 +9,70 @@ SYNOPSIS
 ```bash
 pip3 install dans-datastation-tools
 
-# Available commands, use --help for more information
+# To find out what a command does, use <command> --help, e.g.:
+# dans-bag-validate --help
 
-# Manage a dataverse collection
-dv-dataverse-retrieve-pids
-dv-dataverse-oai-harvest
+# Below is a partial list of commands. Commands are grouped by the application they target. 
+# Commands in a group have the same prefix so you can use command line completion to find 
+# all commands in a group. For example, to find all commands targeting Dataverse, 
+# type `dv-` and press the tab key twice. This will list all commands starting with `dv-`.
+# Some commands have subcommands, you can find the subcommands with the --help option.
 
-# Manage role assignments
-dv-dataset-find-with-role-assignment
-dv-dataset-add-role-assignment
-dv-dataset-delete-role-assignment
-
-# Manage dataset metadata
-dv-dataset-replace-metadata-field-values
-dv-dataset-retrieve-metadata
-dv-dataset-retrieve-metadata-field
-
-# Manage dataset state
-dv-dataset-delete-draft
-dv-dataset-destroy
-dv-dataset-publish
-dv-dataset-reindex
-dv-dataset-manage-locks
-dv-dataset-update-datacite-record
-
-#manage Banner Messages
-dv-banner
-
-# User management
-dv-user-import
-
-# Manage dd-ingest-flow
-ingest-flow-copy-batch-to-ingest-area
-ingest-flow-move-batch-to-ingest-area
-ingest-flow-start-migration
-ingest-flow-start-import
-
-# Validate bags for compliance with DANS BagIt Profile
+# DANS bag validation
 dans-bag-validate
 
-# Helper scripts for the migration from EASY
-dv-dataset-destroy-migration-placeholder
-dv-file-prestage
+# Commands targeting Dataverse start with dv-, e.g.:
 
+# Dataverse banner management
+dv-banner 
+
+# Commands targeting Dataverse datasets start with dv-dataset-, e.g.:
+dv-dataset-delete-draft 
+dv-dataset-destroy
+dv-dataset-destroy-migration-placeholder  
+dv-dataset-find-by-role-assignment
+
+# Dataverse user management
+dv-user-import
+
+# Ingest flow management
+ingest-flow
 ```
 
 DESCRIPTION
 -----------
 
-This module contains a variety of command line scripts to facilitate DANS Data Station management. Each script comes
-with a command line help.
+This module contains a variety of commands to facilitate DANS Data Station management. To find out what a command does,
+use `<command> --help`. See the comments in the SYNOPSIS section above to get an idea of what commands are available.
 
-### dataset-destroy
+### Batch processing of datasets
 
-Destroying a dataset is irreversible (well, maybe there is a back-up, but still). During a migration or testing it will
-sometimes be necessary to destroy datasets, but in a production environment this should be used *very* sparingly. That
-is why there is a safety_latch as and extra precaution (the first is that only superusers are allowed to do destroys by
-Dataverse). The latch is initially set to `ON`:
+Some of the commands targeting Dataverse datasets can be used to process a large number of datasets in a batch. These
+commands take a trailing argument `pid_or_pids_file`. As the name suggests, this argument can be either a single PID or
+a file containing a list of PIDs. The file should contain one PID per line. These commands usually have the following
+options:
 
-```yaml
-dataverse:
-  api_token: your-api-token-here
-  server_url: 'http://localhost:8080'
-  files_root: your-files-root-here
-  safety_latch: ON # <== safety latch on
-  db:
-    host: localhost
-    dbname: dvndb
-    user: dvnuser
-    password: your-password-here
-```
-
-Note that this setting is a boolean. If you put it in quotes it will always be interpreted as `True`. Unquoted `no`,
-`off`, `False` will work to turn it off.
-
-**AFTERWARDS, ALWAYS TURN IT BACK ON**.
+* `--wait-between-items`: the number of seconds to wait between processing each dataset. This is useful to avoid
+  overloading the server.
+* `--fail-fast`: fail on the first error. If this option is not given, the command will continue processing the
+  remaining datasets after an error has occurred.
+* `--report-file`: the name of a CSV file in which a summary of the results will be written. The file will be created
+  if it does not exist, otherwise it will be overwritten.
 
 EXAMPLES
 --------
 
-### dans-bag-validate
+### Processing JSON output of `dans-bag-validate` with jq
 
 The JSON output of this command can be queried with `jq`. This tool has a very good
 [manual](https://stedolan.github.io/jq/manual/){:target=_blank}. However, to get you started, here are some example
 queries:
 
-```text
-dans-bag-validator <target> -o ~/results.json
+```bash
+dans-bag-validate <target> > ~/results.json
 
 # Print only the bag location and the violations
-cat results.json | jq 'map({location: ."Bag location", violations: ."Rule violations"})'
+cat results.json 
 
 # Count the number of bags that are non-compliant
 cat results.json | jq '[.[] | select(."Is compliant" == false)] | length'
@@ -113,18 +87,21 @@ INSTALLATION & CONFIGURATION
 
 ### Installation
 
-* Globally:
+#### For the current user 
+This is the recommended way, when installing on your own machine.
+  
+```bash
+pip3 install --user dans-datastation-tools
+```
+  
+ You may have to add the directory where `pip3` installs the command to the `PATH` manually.
 
-  ```bash
-  sudo pip3 install dans-datastation-tools
-  ```
+#### Globally 
+This is useful when installing on a server where the commands need to be shared by multiple users.
 
-* For the current user:
-
-  ```bash
-  pip3 install --user dans-datastation-tools
-  ```
-  You may have to add the directory where `pip3` installs the command to the `PATH` manually.
+```bash
+sudo pip3 install dans-datastation-tools
+```
 
 ### Configuration
 
