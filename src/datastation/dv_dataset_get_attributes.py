@@ -51,8 +51,6 @@ def main():
 
 
 def get_dataset_attributes(args, dataverse: DataverseClient):
-    output = []
-
     options = AttributeOptions()
     options.storage = args.storage
     options.user_role = args.user_with_role
@@ -62,17 +60,10 @@ def get_dataset_attributes(args, dataverse: DataverseClient):
 
         for dataset in datasets:
             result = process_dataset_attributes(dataverse, dataset, options)
-            output.append(result)
+            print_output(result)
 
     except Exception as e:
         logging.error("Error while retrieving dataset attributes: %s", e)
-
-    # if no datasets were found but a specific ID was provided, log an error
-    if not args.all_datasets and len(output) < 1:
-        logging.error("Dataset with pid %s not found", args.pid)
-        sys.exit(1)
-
-    print_output(output, args)
 
 
 def get_dataset_list(
@@ -119,14 +110,7 @@ def process_dataset_attributes(
     return attributes
 
 
-def print_output(output: List[dict], args: argparse.Namespace):
-    if not args.all_datasets:
-        print_json(output[0])
-    else:
-        print_json(output)
-
-
-def print_json(output):
+def print_output(output: dict):
     print(json.dumps(output, indent=2))
 
 
