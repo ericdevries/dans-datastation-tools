@@ -7,8 +7,6 @@ from datetime import timedelta
 
 
 class Notifications:
-    """Imports users from a CSV file into a Dataverse instance. The CSV file can be exported from EASY or manually
-    created. The Dataverse instance must have the BuiltinUsers.KEY set. """
 
     def __init__(self, dataverse_client: DataverseClient, dry_run: bool = False):
         self.dataverse_client = dataverse_client
