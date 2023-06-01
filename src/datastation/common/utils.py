@@ -19,12 +19,15 @@ def add_batch_proccessor_args(parser, report: bool = True):
                             dest='report_file')
 
 def positive_int_argument_converter(value):
-    ivalue = int(value)
+    try:
+        ivalue = int(value)
 
-    if ivalue <= 0:
+        if ivalue <= 0:
+            raise argparse.ArgumentTypeError("value must be a number greater than zero")
+
+        return ivalue
+    except ValueError:
         raise argparse.ArgumentTypeError("value must be a number greater than zero")
-
-    return ivalue
 
 
 def print_dry_run_message(method, url, params=None, headers=None, data=None, json=None):
