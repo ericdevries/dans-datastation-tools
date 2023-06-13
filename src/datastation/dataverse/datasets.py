@@ -15,25 +15,24 @@ class Datasets:
             storage: bool,
             role: str,
         ):
-            pid = (
-                dataset["global_id"]
-                if "global_id" in dataset
-                else dataset["datasetPersistentId"]
-            )
+            # convert search result to dataset if needed
+            if "global_id" in dataset:
+                result = self.dataverse_client.dataset(dataset["global_id"]).get(
+                    dry_run=self.dry_run
+                )
 
+                if result is None:
+                    raise Exception("Dataset not found")
+
+                dataset = result
+
+            pid = dataset["datasetPersistentId"]
             attributes = {"pid": pid}
 
             if storage:
-                dataset_with_files = dataset
-
-                if "files" not in dataset_with_files:
-                    dataset_with_files = self.dataverse_client.dataset(pid).get(
-                        dry_run=self.dry_run
-                    )
-
-                if dataset_with_files:
+                if dataset:
                     attributes["storage"] = sum(
-                        f["dataFile"]["filesize"] for f in dataset_with_files["files"]
+                        f["dataFile"]["filesize"] for f in dataset["files"]
                     )
                 else:
                     raise Exception("Dataset not found")
@@ -52,6 +51,7 @@ class Datasets:
 
             print(json.dumps(attributes, indent=2))
 
+        # a single dataset
         if pid is not None:
             dataset = self.dataverse_client.dataset(pid).get(dry_run=self.dry_run)
 
@@ -62,7 +62,9 @@ class Datasets:
 
             return
 
-        contents = self.dataverse_client.dataverse().search(dry_run=self.dry_run)
+        else:
+            # all datasets
+            contents = self.dataverse_client.dataverse().search(dry_run=self.dry_run)
 
-        for result in contents:
-            process_dataset_attributes(result, storage, role)
+            for result in contents:
+                process_dataset_attributes(result, storage, role)
